@@ -3,5 +3,15 @@
     "currentQuarter": "Q2 2026",
     "organization": "Circus Casino Resort Namur"
   },
-  "projects": []
+  "projects": [
+    {
+      "id": "peynxdw9g",
+      "name": "Test",
+      "category": "experience-client",
+      "sponsor": "CVK",
+      "realisations": "",
+      "points_attention": "",
+      "prochaines_etapes": ""
+    }
+  ]
 }
