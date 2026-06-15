@@ -259,7 +259,7 @@ function buildSidebar() {
           ? `<button onclick="openLoginModal()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">🔐 <span>Se connecter</span></button>`
           : `<button onclick="doLogout()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">🚪 <span>Déconnexion</span></button>`
         }
-        ${S.mode === 'admin'
+        ${S.mode !== 'read'
           ? `<button onclick="openTokenModal()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">🔑 <span>Token GitHub</span></button>`
           : ''
         }
