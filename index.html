@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plan Stratégique — Circus Casino Resort Namur</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: { DEFAULT: '#1e293b', light: '#334155', dark: '#0f172a' },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+    .sidebar { width: 268px; }
+    .nav-btn { transition: background 0.15s, color 0.15s; }
+    .nav-btn:hover { background: rgba(245,158,11,0.12); color: #fff; }
+    .nav-btn.active { background: rgba(245,158,11,0.22); color: #fbbf24; border-right: 3px solid #f59e0b; }
+    .project-card { transition: box-shadow 0.18s; }
+    .project-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.09); }
+    textarea { resize: vertical; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; display: inline-block; }
+    .fade-in { animation: fadeIn 0.2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="bg-slate-50 text-gray-800">
+
+<div id="app" class="flex min-h-screen"></div>
+
+<div id="modal-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center" style="background:rgba(0,0,0,0.45)">
+  <div id="modal-box" class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg mx-4 fade-in"></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIGURATION
+// ─────────────────────────────────────────────
+const REPO_OWNER = 'resortnamur';
+const REPO_NAME  = 'plan-strategique';
+const DATA_FILE  = 'data.json';
+const ADMIN_PWD  = 'admin2026';
+
+const CATEGORIES = [
+  { id:'experience-client',         label:'Expérience client',                               short:'Exp. client',    icon:'⭐', badge:'bg-blue-100 text-blue-700'   },
+  { id:'excellence-operationnelle', label:'Excellence opérationnelle',                        short:'Excellence op.', icon:'⚙️', badge:'bg-emerald-100 text-emerald-700' },
+  { id:'performance-financiere',    label:'Performance financière et maîtrise des coûts',    short:'Perf. financière',icon:'📊', badge:'bg-amber-100 text-amber-700'  },
+  { id:'engagement-equipes',        label:"Engagement des équipes",                           short:'Engagement',     icon:'🤝', badge:'bg-violet-100 text-violet-700' },
+  { id:'conformite-risques',        label:'Conformité et gestion des risques',                short:'Conformité',     icon:'🛡️', badge:'bg-rose-100 text-rose-700'    },
+];
+
+const SPONSORS = [
+  { id:'KT',  name:'Karim Tekaya',                 title:'Directeur général',      pwd:'KT'  },
+  { id:'JS',  name:'Jérôme Soreil',                title:'Directeur des opérations',pwd:'JS'  },
+  { id:'CVK', name:'Christophe Van Kerrebroeck',   title:'Coordinateur exécutif',  pwd:'CVK' },
+  { id:'SA',  name:'Sonia Arezki',                 title:'DRH',                    pwd:'SA'  },
+];
+
+// ─────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────
+let S = {
+  mode:      'read',   // 'read' | 'admin' | 'sponsor'
+  sponsor:   null,     // sponsor id when mode === 'sponsor'
+  view:      'cat-overview',
+  data:      null,
+  token:     localStorage.getItem('gh_token') || '',
+  sha:       null,
+  loading:   true,
+  saving:    false,
+  error:     null,
+};
+
+// ─────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────
+const cat  = id => CATEGORIES.find(c => c.id === id) || { label: id, short: id, icon: '📁', badge: 'bg-gray-100 text-gray-600' };
+const spn  = id => SPONSORS.find(s => s.id === id);
+const uid  = ()  => 'p' + Math.random().toString(36).slice(2, 10);
+const esc  = s   => s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const prjs = ()  => S.data?.projects || [];
+const byCat= id  => prjs().filter(p => p.category === id);
+const bySpn= id  => prjs().filter(p => p.sponsor  === id);
+
+// ─────────────────────────────────────────────
+// GITHUB API
+// ─────────────────────────────────────────────
+async function loadData() {
+  S.loading = true; S.error = null; render();
+  try {
+    const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}`;
+    const hdrs = { Accept: 'application/vnd.github.v3+json' };
+    if (S.token) hdrs.Authorization = `token ${S.token}`;
+    const r = await fetch(url, { headers: hdrs });
+    if (!r.ok) throw new Error(`Erreur GitHub ${r.status} — vérifiez que le dépôt existe et est accessible.`);
+    const f = await r.json();
+    S.sha  = f.sha;
+    S.data = JSON.parse(decodeURIComponent(escape(atob(f.content.replace(/\n/g,'')))));
+    S.loading = false; render();
+  } catch(e) {
+    S.error = e.message; S.loading = false; render();
+  }
+}
+
+async function saveData() {
+  if (!S.token) { alert("Token GitHub manquant. Configurez-le via le menu administrateur."); return false; }
+  S.saving = true; render();
+  try {
+    const content = btoa(unescape(encodeURIComponent(JSON.stringify(S.data, null, 2))));
+    const r = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${DATA_FILE}`, {
+      method: 'PUT',
+      headers: {
+        Authorization: `token ${S.token}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/vnd.github.v3+json',
+      },
+      body: JSON.stringify({
+        message: `Mise à jour — ${new Date().toLocaleDateString('fr-BE')}`,
+        content,
+        sha: S.sha,
+      }),
+    });
+    if (!r.ok) { const e = await r.json(); throw new Error(e.message); }
+    const res = await r.json();
+    S.sha = res.content.sha;
+    S.saving = false;
+    return true;
+  } catch(e) {
+    S.saving = false;
+    alert('Erreur sauvegarde : ' + e.message);
+    render();
+    return false;
+  }
+}
+
+// ─────────────────────────────────────────────
+// AUTH
+// ─────────────────────────────────────────────
+function openLoginModal() {
+  showModal(`
+    <div class="text-center mb-5">
+      <div class="text-5xl mb-2">🔐</div>
+      <h2 class="text-xl font-bold">Accès sécurisé</h2>
+      <p class="text-gray-400 text-sm mt-1">Entrez votre code d'accès</p>
+    </div>
+    <form onsubmit="doLogin(event)">
+      <input id="pwd-in" type="password" placeholder="Code d'accès"
+        class="w-full border rounded-xl px-4 py-3 text-center text-xl tracking-widest focus:outline-none focus:ring-2 focus:ring-amber-400" />
+      <p id="pwd-err" class="hidden text-red-500 text-sm text-center mt-2"></p>
+      <button type="submit" class="mt-4 w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 rounded-xl transition">
+        Connexion
+      </button>
+      <button type="button" onclick="closeModal()" class="mt-2 w-full text-gray-400 hover:text-gray-600 py-2 text-sm transition">
+        Annuler
+      </button>
+    </form>
+  `);
+  document.getElementById('pwd-in').focus();
+}
+
+function doLogin(e) {
+  e.preventDefault();
+  const v = document.getElementById('pwd-in').value.trim();
+  if (v === ADMIN_PWD) {
+    S.mode = 'admin'; S.sponsor = null; closeModal(); render(); return;
+  }
+  const found = SPONSORS.find(s => s.pwd === v);
+  if (found) {
+    S.mode = 'sponsor'; S.sponsor = found.id;
+    S.view = 'spn-' + found.id;
+    closeModal(); render(); return;
+  }
+  const err = document.getElementById('pwd-err');
+  err.textContent = 'Code incorrect. Réessayez.';
+  err.classList.remove('hidden');
+}
+
+function doLogout() {
+  S.mode = 'read'; S.sponsor = null; S.view = 'cat-overview'; render();
+}
+
+// ─────────────────────────────────────────────
+// MODAL
+// ─────────────────────────────────────────────
+function showModal(html) {
+  document.getElementById('modal-box').innerHTML = html;
+  document.getElementById('modal-overlay').classList.remove('hidden');
+}
+function closeModal() {
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+// ─────────────────────────────────────────────
+// NAVIGATION
+// ─────────────────────────────────────────────
+function go(view) {
+  S.view = view;
+  render();
+  document.querySelector('.content-scroll')?.scrollTo(0, 0);
+}
+
+// ─────────────────────────────────────────────
+// SIDEBAR
+// ─────────────────────────────────────────────
+function buildSidebar() {
+  const isAdmin   = S.mode === 'admin';
+  const isSponsor = S.mode === 'sponsor';
+
+  const li = (view, icon, label, indent) => {
+    const active = S.view === view;
+    return `<button onclick="go('${view}')"
+      class="nav-btn w-full text-left flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm ${active ? 'active' : 'text-slate-400'} ${indent ? 'pl-7' : 'font-medium'}">
+      <span>${icon}</span><span class="truncate">${label}</span>
+    </button>`;
+  };
+
+  const sec = label => `<p class="text-xs font-semibold text-slate-600 uppercase tracking-wider px-3 pt-4 pb-1">${label}</p>`;
+
+  let nav = '';
+  if (!isSponsor) {
+    nav += sec('Vues d\'ensemble');
+    nav += li('cat-overview', '📋', 'Par catégorie');
+    nav += li('spn-overview', '👥', 'Par sponsor');
+    nav += sec('Par sponsor');
+    SPONSORS.forEach(s => nav += li('spn-'+s.id, '👤', s.id + ' — ' + s.name.split(' ')[0], true));
+    nav += sec('Par catégorie');
+    CATEGORIES.forEach(c => nav += li('cat-'+c.id, c.icon, c.short, true));
+    if (isAdmin) nav += li('admin', '⚙️', 'Gérer les projets');
+  } else {
+    nav += sec('Mes projets');
+    nav += li('spn-'+S.sponsor, '📋', 'Tous mes projets');
+  }
+
+  const modeBadge = S.mode === 'read'
+    ? '<span class="text-xs text-slate-500">Mode lecture</span>'
+    : S.mode === 'admin'
+      ? '<span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full">Administrateur</span>'
+      : `<span class="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded-full">Mode ${S.sponsor}</span>`;
+
+  return `
+    <div class="sidebar flex-shrink-0 bg-slate-900 flex flex-col h-screen sticky top-0 overflow-y-auto">
+      <div class="px-4 py-4 border-b border-slate-800">
+        <div class="text-amber-400 text-xs font-bold tracking-widest mb-0.5">CIRCUS CASINO RESORT</div>
+        <div class="text-white font-bold text-lg leading-tight">Plan Stratégique</div>
+        <div class="text-slate-400 text-xs mt-1">${S.data?.config?.currentQuarter || '—'}</div>
+      </div>
+      <div class="px-4 py-2 border-b border-slate-800">${modeBadge}</div>
+      <nav class="flex-1 px-2 py-2 space-y-0.5">${nav}</nav>
+      <div class="px-2 py-3 border-t border-slate-800 space-y-1">
+        ${S.mode === 'read'
+          ? `<button onclick="openLoginModal()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">🔐 <span>Se connecter</span></button>`
+          : `<button onclick="doLogout()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">🚪 <span>Déconnexion</span></button>`
+        }
+        ${S.mode === 'admin'
+          ? `<button onclick="openTokenModal()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">🔑 <span>Token GitHub</span></button>`
+          : ''
+        }
+        <button onclick="loadData()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">🔄 <span>Actualiser</span></button>
+      </div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────
+// SHARED COMPONENTS
+// ─────────────────────────────────────────────
+function pageHeader(title, sub) {
+  return `<div class="mb-6 fade-in">
+    <h1 class="text-2xl font-bold text-gray-900">${title}</h1>
+    ${sub ? `<p class="text-gray-400 text-sm mt-0.5">${sub}</p>` : ''}
+    ${S.saving ? `<div class="mt-2 text-amber-600 text-sm flex items-center gap-1.5"><span class="spin">⏳</span> Sauvegarde en cours…</div>` : ''}
+  </div>`;
+}
+
+function projectCard(p, editable) {
+  const c = cat(p.category);
+  const s = spn(p.sponsor);
+  const has = p.realisations || p.points_attention || p.prochaines_etapes;
+  return `
+    <div class="project-card bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden fade-in">
+      <div class="px-5 py-4 flex items-start justify-between gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap items-center gap-2 mb-1">
+            <span class="text-xs px-2.5 py-0.5 rounded-full font-medium ${c.badge}">${c.icon} ${c.short}</span>
+            <span class="text-xs text-gray-400 font-medium">${s ? s.id : p.sponsor}</span>
+          </div>
+          <h3 class="font-semibold text-gray-800">${esc(p.name)}</h3>
+        </div>
+        ${editable ? `<button onclick="openEditModal('${p.id}')"
+          class="flex-shrink-0 text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-medium transition">
+          ✏️ Mettre à jour
+        </button>` : ''}
+      </div>
+      ${has ? `<div class="border-t border-gray-50 px-5 pb-4 pt-3 space-y-3">
+        ${p.realisations ? `<div>
+          <div class="text-xs font-semibold text-emerald-600 mb-1">✅ Réalisations</div>
+          <p class="text-gray-700 text-sm whitespace-pre-wrap">${esc(p.realisations)}</p>
+        </div>` : ''}
+        ${p.points_attention ? `<div>
+          <div class="text-xs font-semibold text-amber-600 mb-1">⚠️ Points d'attention</div>
+          <p class="text-gray-700 text-sm whitespace-pre-wrap">${esc(p.points_attention)}</p>
+        </div>` : ''}
+        ${p.prochaines_etapes ? `<div>
+          <div class="text-xs font-semibold text-blue-600 mb-1">🎯 Prochaines étapes</div>
+          <p class="text-gray-700 text-sm whitespace-pre-wrap">${esc(p.prochaines_etapes)}</p>
+        </div>` : ''}
+      </div>` : `<div class="border-t border-gray-50 px-5 py-3 text-gray-400 text-sm italic">Aucune mise à jour pour ce trimestre.</div>`}
+    </div>`;
+}
+
+function emptyState(msg) {
+  return `<div class="text-center py-16 text-gray-400">
+    <div class="text-4xl mb-3">📭</div>
+    <p>${msg}</p>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────
+// VIEWS
+// ─────────────────────────────────────────────
+function viewCatOverview() {
+  const all = prjs();
+  return pageHeader('Vue par catégorie', `${all.length} projet(s) — ${S.data?.config?.currentQuarter || ''}`)
+    + CATEGORIES.map(c => {
+        const ps = byCat(c.id);
+        if (!ps.length) return '';
+        return `<div class="mb-8">
+          <h2 class="text-base font-semibold text-gray-600 mb-3 flex items-center gap-2">
+            ${c.icon} ${c.label} <span class="text-gray-400 font-normal text-sm">(${ps.length})</span>
+          </h2>
+          <div class="space-y-2">
+            ${ps.map(p => `<div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center justify-between">
+              <span class="font-medium text-gray-800">${esc(p.name)}</span>
+              <span class="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">${p.sponsor}</span>
+            </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('')
+    + (all.length === 0 ? emptyState('Aucun projet. Connectez-vous en mode administrateur pour en ajouter.') : '');
+}
+
+function viewSpnOverview() {
+  const all = prjs();
+  return pageHeader('Vue par sponsor', `${all.length} projet(s) — ${S.data?.config?.currentQuarter || ''}`)
+    + SPONSORS.map(s => {
+        const ps = bySpn(s.id);
+        if (!ps.length) return '';
+        return `<div class="mb-8">
+          <h2 class="text-base font-semibold text-gray-600 mb-1">${s.id} — ${s.name}</h2>
+          <p class="text-gray-400 text-xs mb-3">${s.title}</p>
+          <div class="space-y-2">
+            ${ps.map(p => {
+              const c = cat(p.category);
+              return `<div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center justify-between">
+                <span class="font-medium text-gray-800">${esc(p.name)}</span>
+                <span class="text-xs px-2.5 py-1 rounded-full font-medium ${c.badge}">${c.icon} ${c.short}</span>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('')
+    + (all.length === 0 ? emptyState('Aucun projet. Connectez-vous en mode administrateur pour en ajouter.') : '');
+}
+
+function viewSponsor(id) {
+  const s   = spn(id);
+  const ps  = bySpn(id);
+  const can = S.mode === 'sponsor' && S.sponsor === id;
+  return pageHeader(
+    s ? `${s.name}` : id,
+    s ? `${s.title} — ${ps.length} projet(s)` : ''
+  ) + (ps.length
+    ? `<div class="space-y-4">${ps.map(p => projectCard(p, can)).join('')}</div>`
+    : emptyState('Aucun projet affecté à ce sponsor.'));
+}
+
+function viewCategory(id) {
+  const c  = cat(id);
+  const ps = byCat(id);
+  return pageHeader(`${c.icon} ${c.label}`, `${ps.length} projet(s)`)
+    + (ps.length
+      ? `<div class="space-y-4">${ps.map(p => projectCard(p, false)).join('')}</div>`
+      : emptyState('Aucun projet dans cette catégorie.'));
+}
+
+// ─────────────────────────────────────────────
+// ADMIN VIEW
+// ─────────────────────────────────────────────
+function viewAdmin() {
+  const all = prjs();
+  const q   = S.data?.config?.currentQuarter || '';
+  return pageHeader('Administration', 'Gestion des projets et configuration')
+    + `<div class="space-y-6">
+    <!-- Config -->
+    <div class="bg-white rounded-2xl border border-gray-200 p-5">
+      <h2 class="font-semibold text-gray-700 mb-3 flex items-center gap-2">⚙️ Configuration</h2>
+      <div class="flex flex-wrap items-center gap-3">
+        <label class="text-sm text-gray-500">Trimestre en cours :</label>
+        <input id="q-input" type="text" value="${esc(q)}" placeholder="ex: Q3 2026"
+          class="border rounded-lg px-3 py-1.5 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-amber-300" />
+        <button onclick="updateQuarter()" class="bg-amber-500 hover:bg-amber-600 text-white text-sm px-4 py-1.5 rounded-lg transition">
+          Enregistrer
+        </button>
+      </div>
+    </div>
+
+    <!-- Add project -->
+    <div class="bg-white rounded-2xl border border-gray-200 p-5">
+      <h2 class="font-semibold text-gray-700 mb-3">➕ Ajouter un projet</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <input id="np-name" type="text" placeholder="Nom du projet"
+          class="sm:col-span-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+        <select id="np-cat" class="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          <option value="">— Catégorie —</option>
+          ${CATEGORIES.map(c => `<option value="${c.id}">${c.icon} ${c.short}</option>`).join('')}
+        </select>
+        <div class="flex gap-2">
+          <select id="np-spn" class="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+            <option value="">— Sponsor —</option>
+            ${SPONSORS.map(s => `<option value="${s.id}">${s.id} — ${s.name.split(' ')[0]}</option>`).join('')}
+          </select>
+          <button onclick="addProject()" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm transition whitespace-nowrap">
+            Ajouter
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Projects list -->
+    <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+      <div class="px-5 py-3.5 border-b border-gray-100 font-semibold text-gray-700">
+        📋 Tous les projets <span class="text-gray-400 font-normal">(${all.length})</span>
+      </div>
+      ${all.length === 0 ? `<div class="px-5 py-10 text-center text-gray-400">Aucun projet pour l'instant.</div>` : ''}
+      <div class="divide-y divide-gray-50">
+        ${all.map(p => {
+          const c = cat(p.category);
+          return `<div class="px-5 py-3 flex items-center gap-3 group hover:bg-gray-50 transition">
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-gray-800 truncate">${esc(p.name)}</div>
+              <div class="flex items-center gap-2 mt-0.5">
+                <span class="text-xs text-gray-400">${c.icon} ${c.short}</span>
+                <span class="text-gray-300">·</span>
+                <span class="text-xs text-gray-400">${p.sponsor}</span>
+              </div>
+            </div>
+            <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+              <button onclick="openAdminEditModal('${p.id}')" class="text-xs text-blue-600 hover:bg-blue-50 px-2.5 py-1.5 rounded-lg transition">✏️ Modifier</button>
+              <button onclick="deleteProject('${p.id}')" class="text-xs text-red-500 hover:bg-red-50 px-2.5 py-1.5 rounded-lg transition">🗑️ Supprimer</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ─────────────────────────────────────────────
+// ADMIN ACTIONS
+// ─────────────────────────────────────────────
+async function addProject() {
+  const name = document.getElementById('np-name').value.trim();
+  const catId = document.getElementById('np-cat').value;
+  const spnId = document.getElementById('np-spn').value;
+  if (!name || !catId || !spnId) { alert('Remplissez tous les champs.'); return; }
+  S.data.projects.push({ id: uid(), name, category: catId, sponsor: spnId,
+    realisations: '', points_attention: '', prochaines_etapes: '' });
+  if (await saveData()) render();
+}
+
+async function deleteProject(id) {
+  const p = prjs().find(x => x.id === id);
+  if (!p || !confirm(`Supprimer le projet "${p.name}" ?`)) return;
+  S.data.projects = S.data.projects.filter(x => x.id !== id);
+  if (await saveData()) render();
+}
+
+async function updateQuarter() {
+  const v = document.getElementById('q-input').value.trim();
+  if (!v) return;
+  S.data.config.currentQuarter = v;
+  if (await saveData()) render();
+}
+
+function openAdminEditModal(id) {
+  const p = prjs().find(x => x.id === id);
+  if (!p) return;
+  showModal(`
+    <h2 class="text-xl font-bold mb-4">Modifier le projet</h2>
+    <div class="space-y-3">
+      <div>
+        <label class="text-sm font-medium text-gray-600 block mb-1">Nom</label>
+        <input id="ae-name" type="text" value="${esc(p.name)}"
+          class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+      </div>
+      <div>
+        <label class="text-sm font-medium text-gray-600 block mb-1">Catégorie</label>
+        <select id="ae-cat" class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          ${CATEGORIES.map(c => `<option value="${c.id}" ${c.id===p.category?'selected':''}>${c.icon} ${c.label}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="text-sm font-medium text-gray-600 block mb-1">Sponsor</label>
+        <select id="ae-spn" class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">
+          ${SPONSORS.map(s => `<option value="${s.id}" ${s.id===p.sponsor?'selected':''}>${s.id} — ${s.name}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="saveAdminEdit('${id}')" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-medium transition">Enregistrer</button>
+      <button onclick="closeModal()" class="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 py-2.5 rounded-xl transition">Annuler</button>
+    </div>`);
+}
+
+async function saveAdminEdit(id) {
+  const p = prjs().find(x => x.id === id);
+  if (!p) return;
+  const name = document.getElementById('ae-name').value.trim();
+  if (!name) { alert('Le nom est obligatoire.'); return; }
+  p.name     = name;
+  p.category = document.getElementById('ae-cat').value;
+  p.sponsor  = document.getElementById('ae-spn').value;
+  if (await saveData()) { closeModal(); render(); }
+}
+
+// ─────────────────────────────────────────────
+// SPONSOR EDIT MODAL
+// ─────────────────────────────────────────────
+function openEditModal(id) {
+  const p = prjs().find(x => x.id === id);
+  if (!p) return;
+  showModal(`
+    <div class="mb-4">
+      <h2 class="text-xl font-bold text-gray-900">${esc(p.name)}</h2>
+      <p class="text-gray-400 text-sm">${S.data?.config?.currentQuarter || ''}</p>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="text-sm font-semibold text-emerald-600 block mb-1.5">✅ Réalisations</label>
+        <textarea id="ed-real" rows="3" placeholder="Quelles sont les réalisations ce trimestre ?"
+          class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-300">${esc(p.realisations)}</textarea>
+      </div>
+      <div>
+        <label class="text-sm font-semibold text-amber-600 block mb-1.5">⚠️ Points d'attention</label>
+        <textarea id="ed-att" rows="3" placeholder="Y a-t-il des points d'attention ?"
+          class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">${esc(p.points_attention)}</textarea>
+      </div>
+      <div>
+        <label class="text-sm font-semibold text-blue-600 block mb-1.5">🎯 Prochaines étapes</label>
+        <textarea id="ed-next" rows="3" placeholder="Quelles sont les prochaines étapes ?"
+          class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300">${esc(p.prochaines_etapes)}</textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button id="save-btn" onclick="saveUpdate('${id}')"
+        class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-bold transition">
+        💾 Enregistrer
+      </button>
+      <button onclick="closeModal()" class="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 py-2.5 rounded-xl transition">
+        Annuler
+      </button>
+    </div>`);
+}
+
+async function saveUpdate(id) {
+  const p = prjs().find(x => x.id === id);
+  if (!p) return;
+  const btn = document.getElementById('save-btn');
+  if (btn) { btn.textContent = '⏳ Sauvegarde…'; btn.disabled = true; }
+  p.realisations     = document.getElementById('ed-real').value.trim();
+  p.points_attention = document.getElementById('ed-att').value.trim();
+  p.prochaines_etapes= document.getElementById('ed-next').value.trim();
+  if (await saveData()) { closeModal(); render(); }
+}
+
+// ─────────────────────────────────────────────
+// TOKEN MODAL
+// ─────────────────────────────────────────────
+function openTokenModal() {
+  showModal(`
+    <h2 class="text-xl font-bold mb-1">🔑 Token GitHub</h2>
+    <p class="text-gray-400 text-sm mb-4">Nécessaire pour sauvegarder les modifications</p>
+    <input id="tok-in" type="password" value="${esc(S.token)}" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+      class="w-full border rounded-xl px-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-300" />
+    <p class="text-gray-400 text-xs mt-2">Le token est conservé localement dans ce navigateur uniquement.</p>
+    <div class="flex gap-2 mt-4">
+      <button onclick="saveToken()" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-bold transition">Enregistrer</button>
+      <button onclick="closeModal()" class="flex-1 border border-gray-200 text-gray-600 hover:bg-gray-50 py-2.5 rounded-xl transition">Annuler</button>
+    </div>`);
+}
+
+function saveToken() {
+  S.token = document.getElementById('tok-in').value.trim();
+  localStorage.setItem('gh_token', S.token);
+  closeModal();
+}
+
+// ─────────────────────────────────────────────
+// MAIN CONTENT ROUTER
+// ─────────────────────────────────────────────
+function mainContent() {
+  if (S.loading) return `<div class="flex flex-col items-center justify-center h-64 text-gray-400">
+    <div class="spin text-4xl mb-4">⏳</div>
+    <p>Chargement des données…</p>
+  </div>`;
+
+  if (S.error) return `<div class="bg-red-50 border border-red-200 rounded-2xl p-6 fade-in">
+    <h3 class="font-bold text-red-800 mb-2">❌ Impossible de charger les données</h3>
+    <p class="text-red-700 text-sm mb-3">${esc(S.error)}</p>
+    <p class="text-red-600 text-sm mb-4">Vérifiez que le dépôt <strong>${REPO_OWNER}/${REPO_NAME}</strong> existe et que le fichier <code>data.json</code> est présent.</p>
+    <button onclick="loadData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition">🔄 Réessayer</button>
+  </div>`;
+
+  const v = S.view;
+  if (v === 'cat-overview') return viewCatOverview();
+  if (v === 'spn-overview') return viewSpnOverview();
+  if (v === 'admin')        return viewAdmin();
+  if (v.startsWith('spn-')) return viewSponsor(v.slice(4));
+  if (v.startsWith('cat-')) return viewCategory(v.slice(4));
+  return viewCatOverview();
+}
+
+// ─────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────
+function render() {
+  document.getElementById('app').innerHTML = `
+    ${buildSidebar()}
+    <div class="content-scroll flex-1 overflow-y-auto h-screen">
+      <div class="max-w-3xl mx-auto px-6 py-8">
+        ${S.mode === 'admin' && S.view !== 'admin' ? `
+          <div class="mb-5 flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+            <span class="text-amber-500">⚙️</span>
+            <span class="text-amber-800 text-sm font-medium">Mode administrateur</span>
+            <div class="flex-1"></div>
+            <button onclick="go('admin')" class="text-sm bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition">
+              Gérer les projets
+            </button>
+          </div>` : ''}
+        ${mainContent()}
+      </div>
+    </div>`;
+}
+
+// ─────────────────────────────────────────────
+// BOOT
+// ─────────────────────────────────────────────
+loadData();
+</script>
+</body>
+</html>
