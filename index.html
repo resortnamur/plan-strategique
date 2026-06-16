@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Plan Stratégique — Circus Casino Resort Namur</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -253,8 +254,7 @@ function buildSidebar() {
         <div class="text-slate-400 text-xs mt-1">${S.data?.config?.currentQuarter || '—'}</div>
       </div>
       <div class="px-4 py-2 border-b border-slate-800">${modeBadge}</div>
-      <nav class="flex-1 px-2 py-2 space-y-0.5">${nav}</nav>
-      <div class="px-2 py-3 border-t border-slate-800 space-y-1">
+      <div class="px-2 py-2 border-b border-slate-800 space-y-0.5">
         ${S.mode === 'read'
           ? `<button onclick="openLoginModal()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">🔐 <span>Se connecter</span></button>`
           : `<button onclick="doLogout()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">🚪 <span>Déconnexion</span></button>`
@@ -264,7 +264,9 @@ function buildSidebar() {
           : ''
         }
         <button onclick="loadData()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">🔄 <span>Actualiser</span></button>
+        <button onclick="exportPPTX()" class="nav-btn w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400">📊 <span>Exporter PowerPoint</span></button>
       </div>
+      <nav class="flex-1 px-2 py-2 space-y-0.5">${nav}</nav>
     </div>`;
 }
 
@@ -647,6 +649,185 @@ function render() {
         ${mainContent()}
       </div>
     </div>`;
+}
+
+// ─────────────────────────────────────────────
+// EXPORT POWERPOINT
+// ─────────────────────────────────────────────
+async function exportPPTX() {
+  if (!S.data) { alert('Données non chargées.'); return; }
+
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE'; // 13.33 x 7.5 inches
+
+  const NAVY  = '1e293b';
+  const GOLD  = 'f59e0b';
+  const WHITE = 'FFFFFF';
+  const LGRAY = 'f1f5f9';
+  const quarter = S.data?.config?.currentQuarter || '';
+
+  // ── helpers ────────────────────────────────
+  function addHeader(slide, title, sub) {
+    slide.addShape(pptx.ShapeType.rect, { x:0, y:0, w:'100%', h:1.05, fill:{ color:NAVY } });
+    slide.addShape(pptx.ShapeType.rect, { x:0, y:1.05, w:'100%', h:0.07, fill:{ color:GOLD } });
+    slide.addText(title, { x:0.4, y:0.08, w:10, h:0.58, fontSize:22, bold:true, color:WHITE, fontFace:'Segoe UI' });
+    if (sub) slide.addText(sub, { x:0.4, y:0.65, w:9, h:0.35, fontSize:11, color:GOLD, fontFace:'Segoe UI' });
+    slide.addText(quarter, { x:10.3, y:0.25, w:2.6, h:0.4, fontSize:11, color:GOLD, align:'right', fontFace:'Segoe UI' });
+  }
+
+  function hdr(text) {
+    return { text, options:{ bold:true, color:WHITE, fill:{ color:NAVY }, fontSize:11, valign:'middle' } };
+  }
+  function cell(text, color, italic) {
+    return { text: text||'—', options:{ fontSize:11, color: text ? color : 'adb5bd', italic:!!italic && !text, valign:'middle' } };
+  }
+
+  const TABLE_OPTS = {
+    border:{ type:'solid', color:'dee2e6', pt:0.5 },
+    rowH: 0.32,
+  };
+
+  // ── Slide 1 : titre ───────────────────────
+  const s1 = pptx.addSlide();
+  s1.addShape(pptx.ShapeType.rect, { x:0, y:0, w:'100%', h:'100%', fill:{ color:NAVY } });
+  s1.addShape(pptx.ShapeType.rect, { x:0, y:3.5, w:'100%', h:0.08, fill:{ color:GOLD } });
+  s1.addText('CIRCUS CASINO RESORT NAMUR', {
+    x:0.5, y:1.0, w:12.3, h:0.55,
+    fontSize:13, bold:true, color:GOLD, charSpacing:5, align:'center', fontFace:'Segoe UI'
+  });
+  s1.addText('Plan Stratégique', {
+    x:0.5, y:1.7, w:12.3, h:1.5,
+    fontSize:48, bold:true, color:WHITE, align:'center', fontFace:'Segoe UI'
+  });
+  s1.addText(quarter, {
+    x:0.5, y:3.65, w:12.3, h:0.6,
+    fontSize:20, color:WHITE, align:'center', fontFace:'Segoe UI'
+  });
+  s1.addText(`${prjs().length} projets stratégiques · ${SPONSORS.length} sponsors`, {
+    x:0.5, y:4.5, w:12.3, h:0.45,
+    fontSize:13, color:'64748b', align:'center', fontFace:'Segoe UI'
+  });
+
+  // ── Slide 2 : vue par catégorie (5 colonnes) ─
+  const s2 = pptx.addSlide();
+  addHeader(s2, "Vue d'ensemble — Par catégorie", `${prjs().length} projets`);
+
+  const catMaxRows = Math.max(...CATEGORIES.map(c => byCat(c.id).length));
+  const rows2 = [];
+  // En-têtes : une colonne par catégorie
+  rows2.push(CATEGORIES.map(c => ({
+    text: c.icon + '  ' + c.label,
+    options: { bold:true, color:WHITE, fill:{ color:NAVY }, fontSize:10, align:'center', valign:'middle' }
+  })));
+  // Lignes : une ligne par rang de projet
+  for (let i = 0; i < catMaxRows; i++) {
+    rows2.push(CATEGORIES.map(c => {
+      const p = byCat(c.id)[i];
+      if (!p) return { text:'', options:{ fontSize:11 } };
+      return {
+        text: [
+          { text: p.name, options: { fontSize:11, bold:true, color:'1e293b' } },
+          { text: '\n' + p.sponsor, options: { fontSize:9.5, color:GOLD, bold:false } },
+        ],
+        options: { valign:'middle', align:'left' }
+      };
+    }));
+  }
+  const colW2 = Array(5).fill(12.6 / 5);
+  s2.addTable(rows2, { ...TABLE_OPTS, rowH:0.52, x:0.35, y:1.25, w:12.6, colW:colW2 });
+
+  // ── Slide 3 : vue par sponsor (4 colonnes) ───
+  const s3 = pptx.addSlide();
+  addHeader(s3, "Vue d'ensemble — Par sponsor", `${prjs().length} projets`);
+
+  const spnMaxRows = Math.max(...SPONSORS.map(s => bySpn(s.id).length));
+  const rows3 = [];
+  // En-têtes : une colonne par sponsor
+  rows3.push(SPONSORS.map(s => ({
+    text: s.id + '  —  ' + s.name,
+    options: { bold:true, color:WHITE, fill:{ color:NAVY }, fontSize:10, align:'center', valign:'middle' }
+  })));
+  // Lignes : une ligne par rang de projet
+  for (let i = 0; i < spnMaxRows; i++) {
+    rows3.push(SPONSORS.map(s => {
+      const p = bySpn(s.id)[i];
+      if (!p) return { text:'', options:{ fontSize:11 } };
+      const c = cat(p.category);
+      return {
+        text: [
+          { text: p.name, options: { fontSize:11, bold:true, color:'1e293b' } },
+          { text: '\n' + c.icon + ' ' + c.short, options: { fontSize:9.5, color:'6b7280', bold:false } },
+        ],
+        options: { valign:'middle', align:'left' }
+      };
+    }));
+  }
+  const colW3 = Array(4).fill(12.6 / 4);
+  s3.addTable(rows3, { ...TABLE_OPTS, rowH:0.58, x:0.35, y:1.25, w:12.6, colW:colW3 });
+
+  // ── Slides 4-8 : par catégorie ───────────
+  CATEGORIES.forEach(c => {
+    const slide = pptx.addSlide();
+    const ps = byCat(c.id);
+    addHeader(slide, c.icon+' '+c.label, `${ps.length} projet(s)`);
+    if (!ps.length) {
+      slide.addText('Aucun projet dans cette catégorie.', { x:0.4, y:2.5, fontSize:14, color:'9ca3af', fontFace:'Segoe UI' });
+      return;
+    }
+    const rows = [[
+      hdr('Projet'),
+      hdr('✅ Réalisations'), hdr('⚠️ Points d\'attention'), hdr('🎯 Prochaines étapes')
+    ]];
+    ps.forEach(p => {
+      rows.push([
+        { text: [
+            { text: p.name, options: { fontSize:11, bold:true, color:'1e293b' } },
+            { text: '  ' + p.sponsor, options: { fontSize:9.5, bold:false, color:GOLD } },
+          ], options:{ valign:'middle' }
+        },
+        cell(p.realisations,     '065f46'),
+        cell(p.points_attention, '92400e'),
+        cell(p.prochaines_etapes,'1e40af'),
+      ]);
+    });
+    const rh = Math.min(0.9, (5.9 / (ps.length+1)));
+    slide.addTable(rows, { ...TABLE_OPTS, rowH:rh, x:0.35, y:1.25, w:12.6, colW:[3.2, 3.1, 3.1, 3.2] });
+  });
+
+  // ── Slides 9-12 : par sponsor ──────────────
+  SPONSORS.forEach(s => {
+    const slide = pptx.addSlide();
+    const sp = spn(s.id);
+    addHeader(slide, sp.name, sp.title);
+    const ps = bySpn(s.id);
+    if (!ps.length) {
+      slide.addText('Aucun projet affecté.', { x:0.4, y:2.5, fontSize:14, color:'9ca3af', fontFace:'Segoe UI' });
+      return;
+    }
+    const rows = [[
+      hdr('Projet'),
+      hdr('✅ Réalisations'), hdr('⚠️ Points d\'attention'), hdr('🎯 Prochaines étapes')
+    ]];
+    ps.forEach(p => {
+      const c = cat(p.category);
+      rows.push([
+        { text: [
+            { text: p.name, options: { fontSize:11, bold:true, color:'1e293b' } },
+            { text: '  ' + c.icon, options: { fontSize:9.5, bold:false, color:'374151' } },
+          ], options:{ valign:'middle' }
+        },
+        cell(p.realisations,     '065f46'),
+        cell(p.points_attention, '92400e'),
+        cell(p.prochaines_etapes,'1e40af'),
+      ]);
+    });
+    const rh = Math.min(0.9, (5.9 / (ps.length+1)));
+    slide.addTable(rows, { ...TABLE_OPTS, rowH:rh, x:0.35, y:1.25, w:12.6, colW:[3.2, 3.1, 3.1, 3.2] });
+  });
+
+  // ── Export ────────────────────────────────
+  const filename = `Plan_Strategique_${quarter.replace(/\s/g,'_')}.pptx`;
+  await pptx.writeFile({ fileName: filename });
 }
 
 // ─────────────────────────────────────────────
