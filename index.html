@@ -329,58 +329,108 @@ function emptyState(msg) {
 // ─────────────────────────────────────────────
 function viewCatOverview() {
   const all = prjs();
+  if (!all.length) return pageHeader('Vue par catégorie', '') + emptyState('Aucun projet. Connectez-vous en mode administrateur pour en ajouter.');
+  const maxRows = Math.max(...CATEGORIES.map(c => byCat(c.id).length));
   return pageHeader('Vue par catégorie', `${all.length} projet(s) — ${S.data?.config?.currentQuarter || ''}`)
-    + CATEGORIES.map(c => {
-        const ps = byCat(c.id);
-        if (!ps.length) return '';
-        return `<div class="mb-8">
-          <h2 class="text-base font-semibold text-gray-600 mb-3 flex items-center gap-2">
-            ${c.icon} ${c.label} <span class="text-gray-400 font-normal text-sm">(${ps.length})</span>
-          </h2>
-          <div class="space-y-2">
-            ${ps.map(p => `<div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center justify-between">
-              <span class="font-medium text-gray-800">${esc(p.name)}</span>
-              <span class="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg">${p.sponsor}</span>
-            </div>`).join('')}
-          </div>
-        </div>`;
-      }).join('')
-    + (all.length === 0 ? emptyState('Aucun projet. Connectez-vous en mode administrateur pour en ajouter.') : '');
+    + `<div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr>
+            ${CATEGORIES.map(c => `
+              <th class="bg-slate-800 text-white px-3 py-2.5 text-sm font-bold text-center border border-slate-700 w-1/5">
+                ${c.icon} ${c.short}
+              </th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${Array.from({length: maxRows}, (_, i) => `
+            <tr>
+              ${CATEGORIES.map(c => {
+                const p = byCat(c.id)[i];
+                return `<td class="bg-white border border-gray-100 px-3 py-2.5 align-top" style="width:20%">
+                  ${p ? `<div class="font-semibold text-gray-800 text-sm">${esc(p.name)}</div>
+                         <div class="text-xs text-amber-500 font-bold mt-0.5">${p.sponsor}</div>` : ''}
+                </td>`;
+              }).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
 }
 
 function viewSpnOverview() {
   const all = prjs();
+  if (!all.length) return pageHeader('Vue par sponsor', '') + emptyState('Aucun projet. Connectez-vous en mode administrateur pour en ajouter.');
+  const maxRows = Math.max(...SPONSORS.map(s => bySpn(s.id).length));
   return pageHeader('Vue par sponsor', `${all.length} projet(s) — ${S.data?.config?.currentQuarter || ''}`)
-    + SPONSORS.map(s => {
-        const ps = bySpn(s.id);
-        if (!ps.length) return '';
-        return `<div class="mb-8">
-          <h2 class="text-base font-semibold text-gray-600 mb-1">${s.id} — ${s.name}</h2>
-          <p class="text-gray-400 text-xs mb-3">${s.title}</p>
-          <div class="space-y-2">
-            ${ps.map(p => {
-              const c = cat(p.category);
-              return `<div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center justify-between">
-                <span class="font-medium text-gray-800">${esc(p.name)}</span>
-                <span class="text-xs px-2.5 py-1 rounded-full font-medium ${c.badge}">${c.icon} ${c.short}</span>
-              </div>`;
-            }).join('')}
-          </div>
-        </div>`;
-      }).join('')
-    + (all.length === 0 ? emptyState('Aucun projet. Connectez-vous en mode administrateur pour en ajouter.') : '');
+    + `<div class="overflow-x-auto">
+      <table class="w-full border-collapse">
+        <thead>
+          <tr>
+            ${SPONSORS.map(s => `
+              <th class="bg-slate-800 text-white px-3 py-2.5 text-sm font-bold text-center border border-slate-700 w-1/4">
+                ${s.id} — ${s.name.split(' ')[0]}
+              </th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>
+          ${Array.from({length: maxRows}, (_, i) => `
+            <tr>
+              ${SPONSORS.map(s => {
+                const p = bySpn(s.id)[i];
+                const c = p ? cat(p.category) : null;
+                return `<td class="bg-white border border-gray-100 px-3 py-2.5 align-top" style="width:25%">
+                  ${p ? `<div class="font-semibold text-gray-800 text-sm">${esc(p.name)}</div>
+                         <div class="text-xs text-gray-400 mt-0.5">${c.icon} ${c.short}</div>` : ''}
+                </td>`;
+              }).join('')}
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function detailTable(ps, getLabel, canEdit) {
+  return `<div class="overflow-x-auto">
+    <table class="w-full border-collapse text-sm">
+      <thead>
+        <tr>
+          <th class="bg-slate-800 text-white px-4 py-2.5 text-left font-bold border border-slate-700" style="width:26%">Projet</th>
+          <th class="bg-slate-800 text-white px-4 py-2.5 text-left font-bold border border-slate-700" style="width:24%">✅ Réalisations</th>
+          <th class="bg-slate-800 text-white px-4 py-2.5 text-left font-bold border border-slate-700" style="width:24%">⚠️ Points d'attention</th>
+          <th class="bg-slate-800 text-white px-4 py-2.5 text-left font-bold border border-slate-700" style="width:${canEdit?'20%':'26%'}">🎯 Prochaines étapes</th>
+          ${canEdit ? `<th class="bg-slate-800 text-white px-2 py-2.5 border border-slate-700" style="width:6%"></th>` : ''}
+        </tr>
+      </thead>
+      <tbody>
+        ${ps.map(p => {
+          const label = getLabel(p);
+          return `<tr class="hover:bg-amber-50 transition group">
+            <td class="bg-white border border-gray-100 px-4 py-3 align-top">
+              <div class="font-semibold text-gray-800">${esc(p.name)}</div>
+              <div class="text-xs text-amber-500 font-bold mt-0.5">${label}</div>
+            </td>
+            <td class="bg-white border border-gray-100 px-4 py-3 align-top text-sm ${p.realisations ? 'text-emerald-800' : 'text-gray-300 italic'}">${p.realisations ? esc(p.realisations) : '—'}</td>
+            <td class="bg-white border border-gray-100 px-4 py-3 align-top text-sm ${p.points_attention ? 'text-amber-800' : 'text-gray-300 italic'}">${p.points_attention ? esc(p.points_attention) : '—'}</td>
+            <td class="bg-white border border-gray-100 px-4 py-3 align-top text-sm ${p.prochaines_etapes ? 'text-blue-800' : 'text-gray-300 italic'}">${p.prochaines_etapes ? esc(p.prochaines_etapes) : '—'}</td>
+            ${canEdit ? `<td class="bg-white border border-gray-100 px-2 py-3 align-middle text-center">
+              <button onclick="openEditModal('${p.id}')" class="opacity-0 group-hover:opacity-100 transition text-amber-500 hover:text-amber-700 text-lg" title="Mettre à jour">✏️</button>
+            </td>` : ''}
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  </div>`;
 }
 
 function viewSponsor(id) {
   const s   = spn(id);
   const ps  = bySpn(id);
   const can = S.mode === 'sponsor' && S.sponsor === id;
-  return pageHeader(
-    s ? `${s.name}` : id,
-    s ? `${s.title} — ${ps.length} projet(s)` : ''
-  ) + (ps.length
-    ? `<div class="space-y-4">${ps.map(p => projectCard(p, can)).join('')}</div>`
-    : emptyState('Aucun projet affecté à ce sponsor.'));
+  return pageHeader(s ? s.name : id, s ? `${s.title} — ${ps.length} projet(s)` : '')
+    + (ps.length
+      ? detailTable(ps, p => cat(p.category).icon + ' ' + cat(p.category).short, can)
+      : emptyState('Aucun projet affecté à ce sponsor.'));
 }
 
 function viewCategory(id) {
@@ -388,7 +438,7 @@ function viewCategory(id) {
   const ps = byCat(id);
   return pageHeader(`${c.icon} ${c.label}`, `${ps.length} projet(s)`)
     + (ps.length
-      ? `<div class="space-y-4">${ps.map(p => projectCard(p, false)).join('')}</div>`
+      ? detailTable(ps, p => p.sponsor, false)
       : emptyState('Aucun projet dans cette catégorie.'));
 }
 
