@@ -381,7 +381,7 @@ function viewSpnOverview() {
                 const c = p ? cat(p.category) : null;
                 return `<td class="bg-white border border-gray-100 px-3 py-2.5 align-top" style="width:25%">
                   ${p ? `<div class="font-semibold text-gray-800 text-sm">${esc(p.name)}</div>
-                         <div class="text-xs text-gray-400 mt-0.5">${c.icon} ${c.short}</div>` : ''}
+                         <div class="text-base mt-0.5">${c.icon}</div>` : ''}
                 </td>`;
               }).join('')}
             </tr>`).join('')}
@@ -429,7 +429,7 @@ function viewSponsor(id) {
   const can = S.mode === 'sponsor' && S.sponsor === id;
   return pageHeader(s ? s.name : id, s ? `${s.title} — ${ps.length} projet(s)` : '')
     + (ps.length
-      ? detailTable(ps, p => cat(p.category).icon + ' ' + cat(p.category).short, can)
+      ? detailTable(ps, p => cat(p.category).icon, can)
       : emptyState('Aucun projet affecté à ce sponsor.'));
 }
 
