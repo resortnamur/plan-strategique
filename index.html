@@ -230,6 +230,7 @@ function buildSidebar() {
     nav += sec('Vues d\'ensemble');
     nav += li('cat-overview', '📋', 'Par catégorie');
     nav += li('spn-overview', '👥', 'Par sponsor');
+    nav += li('tasks-overview', '✅', 'Tâches');
     nav += sec('Par sponsor');
     SPONSORS.forEach(s => nav += li('spn-'+s.id, '👤', s.id + ' — ' + s.name.split(' ')[0], true));
     nav += sec('Par catégorie');
@@ -238,6 +239,7 @@ function buildSidebar() {
   } else {
     nav += sec('Mes projets');
     nav += li('spn-'+S.sponsor, '📋', 'Tous mes projets');
+    nav += li('tasks-overview', '✅', 'Mes tâches');
   }
 
   const modeBadge = S.mode === 'read'
@@ -293,7 +295,9 @@ function projectCard(p, editable) {
             <span class="text-xs px-2.5 py-0.5 rounded-full font-medium ${c.badge}">${c.icon} ${c.short}</span>
             <span class="text-xs text-gray-400 font-medium">${s ? s.id : p.sponsor}</span>
           </div>
-          <h3 class="font-semibold text-gray-800">${esc(p.name)}</h3>
+          <h3 class="font-semibold text-gray-800 cursor-pointer hover:text-amber-600 transition-colors" onclick="openTasksModal('${p.id}')" title="Voir les tâches">
+            ${esc(p.name)}
+          </h3>
         </div>
         ${editable ? `<button onclick="openEditModal('${p.id}')"
           class="flex-shrink-0 text-sm bg-amber-50 hover:bg-amber-100 text-amber-700 px-3 py-1.5 rounded-lg font-medium transition">
@@ -348,7 +352,7 @@ function viewCatOverview() {
               ${CATEGORIES.map(c => {
                 const p = byCat(c.id)[i];
                 return `<td class="bg-white border border-gray-100 px-3 py-2.5 align-top" style="width:20%">
-                  ${p ? `<div class="font-semibold text-gray-800 text-sm">${esc(p.name)}</div>
+                  ${p ? `<div class="font-semibold text-gray-800 text-sm cursor-pointer hover:text-amber-600 transition-colors" onclick="openTasksModal('${p.id}')" title="Voir les tâches">${esc(p.name)}</div>
                          <div class="text-xs text-amber-500 font-bold mt-0.5">${p.sponsor}</div>` : ''}
                 </td>`;
               }).join('')}
@@ -380,7 +384,7 @@ function viewSpnOverview() {
                 const p = bySpn(s.id)[i];
                 const c = p ? cat(p.category) : null;
                 return `<td class="bg-white border border-gray-100 px-3 py-2.5 align-top" style="width:25%">
-                  ${p ? `<div class="font-semibold text-gray-800 text-sm">${esc(p.name)}</div>
+                  ${p ? `<div class="font-semibold text-gray-800 text-sm cursor-pointer hover:text-amber-600 transition-colors" onclick="openTasksModal('${p.id}')" title="Voir les tâches">${esc(p.name)}</div>
                          <div class="text-base mt-0.5">${c.icon}</div>` : ''}
                 </td>`;
               }).join('')}
@@ -407,7 +411,9 @@ function detailTable(ps, getLabel, canEdit) {
           const label = getLabel(p);
           return `<tr class="hover:bg-amber-50 transition group">
             <td class="bg-white border border-gray-100 px-4 py-3 align-top">
-              <div class="font-semibold text-gray-800">${esc(p.name)}</div>
+              <div class="font-semibold text-gray-800 cursor-pointer hover:text-amber-600 transition-colors" onclick="openTasksModal('${p.id}')" title="Voir les tâches">
+                ${esc(p.name)}
+              </div>
               <div class="text-xs text-amber-500 font-bold mt-0.5">${label}</div>
             </td>
             <td class="bg-white border border-gray-100 px-4 py-3 align-top text-sm ${p.realisations ? 'text-emerald-800' : 'text-gray-300 italic'}">${p.realisations ? esc(p.realisations) : '—'}</td>
@@ -426,7 +432,7 @@ function detailTable(ps, getLabel, canEdit) {
 function viewSponsor(id) {
   const s   = spn(id);
   const ps  = bySpn(id);
-  const can = S.mode === 'sponsor' && S.sponsor === id;
+  const can = (S.mode === 'sponsor' && S.sponsor === id) || S.mode === 'admin';
   return pageHeader(s ? s.name : id, s ? `${s.title} — ${ps.length} projet(s)` : '')
     + (ps.length
       ? detailTable(ps, p => cat(p.category).icon, can)
@@ -438,8 +444,70 @@ function viewCategory(id) {
   const ps = byCat(id);
   return pageHeader(`${c.icon} ${c.label}`, `${ps.length} projet(s)`)
     + (ps.length
-      ? detailTable(ps, p => p.sponsor, false)
+      ? detailTable(ps, p => p.sponsor, S.mode === 'admin')
       : emptyState('Aucun projet dans cette catégorie.'));
+}
+
+// ─────────────────────────────────────────────
+// TASKS OVERVIEW
+// ─────────────────────────────────────────────
+function viewTasksOverview() {
+  const isSponsor = S.mode === 'sponsor';
+  const filtered  = isSponsor ? prjs().filter(p => p.sponsor === S.sponsor) : prjs();
+  const s         = isSponsor ? spn(S.sponsor) : null;
+  const subtitle  = isSponsor
+    ? `${s ? s.name + ' — ' : ''}tâches de mes projets`
+    : 'Tous les projets — toutes catégories';
+
+  const totalTaches = filtered.reduce((n, p) => n + (p.taches||[]).length, 0);
+
+  let html = pageHeader('✅ Vue d\'ensemble des tâches', subtitle + ` — ${totalTaches} tâche${totalTaches !== 1 ? 's' : ''}`);
+
+  let anyCategory = false;
+
+  CATEGORIES.forEach(c => {
+    const ps = filtered.filter(p => p.category === c.id);
+    const rows = ps.flatMap(p => (p.taches||[]).map(t => ({ p, t })));
+    if (!rows.length) return;
+    anyCategory = true;
+
+    html += `
+      <div class="mb-6 fade-in">
+        <h2 class="text-sm font-bold uppercase tracking-wider text-gray-500 mb-2 flex items-center gap-2">
+          <span>${c.icon}</span><span>${c.label}</span>
+        </h2>
+        <div class="overflow-x-auto">
+          <table class="w-full border-collapse text-sm">
+            <thead>
+              <tr>
+                <th class="bg-slate-800 text-white px-4 py-2.5 text-left font-bold border border-slate-700" style="width:24%">Projet</th>
+                <th class="bg-slate-800 text-white px-4 py-2.5 text-left font-bold border border-slate-700" style="width:22%">Tâche</th>
+                <th class="bg-slate-800 text-white px-4 py-2.5 text-left font-bold border border-slate-700" style="width:18%">👤 Pilote</th>
+                <th class="bg-slate-800 text-white px-4 py-2.5 text-left font-bold border border-slate-700">Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map(({ p, t }) => `
+                <tr class="hover:bg-amber-50 transition">
+                  <td class="bg-white border border-gray-100 px-4 py-3 align-top">
+                    <span class="font-semibold text-gray-800 cursor-pointer hover:text-amber-600 transition-colors" onclick="openTasksModal('${p.id}')">${esc(p.name)}</span>
+                    <div class="text-xs text-amber-500 font-bold mt-0.5">${p.sponsor}</div>
+                  </td>
+                  <td class="bg-white border border-gray-100 px-4 py-3 align-top font-medium text-gray-800">${esc(t.nom)}</td>
+                  <td class="bg-white border border-gray-100 px-4 py-3 align-top text-gray-700">${esc(t.pilote)}</td>
+                  <td class="bg-white border border-gray-100 px-4 py-3 align-top text-gray-600">${t.description ? esc(t.description) : '<span class="text-gray-300 italic">—</span>'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  });
+
+  if (!anyCategory) {
+    html += emptyState('Aucune tâche pour le moment.');
+  }
+
+  return html;
 }
 
 // ─────────────────────────────────────────────
@@ -523,7 +591,7 @@ async function addProject() {
   const spnId = document.getElementById('np-spn').value;
   if (!name || !catId || !spnId) { alert('Remplissez tous les champs.'); return; }
   S.data.projects.push({ id: uid(), name, category: catId, sponsor: spnId,
-    realisations: '', points_attention: '', prochaines_etapes: '' });
+    realisations: '', points_attention: '', prochaines_etapes: '', taches: [] });
   if (await saveData()) render();
 }
 
@@ -633,6 +701,107 @@ async function saveUpdate(id) {
 }
 
 // ─────────────────────────────────────────────
+// TASKS MODAL
+// ─────────────────────────────────────────────
+function openTasksModal(id, editIdx = -1) {
+  const p = prjs().find(x => x.id === id);
+  if (!p) return;
+  const canAdd = (S.mode === 'sponsor' && S.sponsor === p.sponsor) || S.mode === 'admin';
+  const taches = p.taches || [];
+
+  const tasksList = taches.length > 0
+    ? taches.map((t, i) => {
+        if (canAdd && i === editIdx) {
+          return `
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 space-y-2">
+              <input id="te-nom" type="text" value="${esc(t.nom)}" placeholder="Nom de la tâche *"
+                class="w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+              <input id="te-pilote" type="text" value="${esc(t.pilote)}" placeholder="Pilote *"
+                class="w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+              <textarea id="te-desc" rows="2" placeholder="Description (optionnelle)"
+                class="w-full border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300">${esc(t.description)}</textarea>
+              <div class="flex gap-2">
+                <button onclick="saveTask('${id}',${i})" class="flex-1 bg-amber-500 hover:bg-amber-600 text-white py-1.5 rounded-lg text-sm font-semibold transition">💾 Enregistrer</button>
+                <button onclick="openTasksModal('${id}')" class="flex-1 border border-gray-200 text-gray-500 hover:bg-gray-50 py-1.5 rounded-lg text-sm transition">Annuler</button>
+              </div>
+            </div>`;
+        }
+        return `
+          <div class="bg-gray-50 rounded-xl p-3 space-y-1">
+            <div class="flex items-start justify-between gap-2">
+              <div class="font-semibold text-gray-800 text-sm">${esc(t.nom)}</div>
+              ${canAdd ? `<div class="flex gap-1 flex-shrink-0">
+                <button onclick="openTasksModal('${id}',${i})" class="text-blue-400 hover:text-blue-600 transition text-sm px-1" title="Modifier">✏️</button>
+                <button onclick="deleteTask('${id}',${i})" class="text-red-300 hover:text-red-600 transition text-base leading-none px-1" title="Supprimer">✕</button>
+              </div>` : ''}
+            </div>
+            <div class="text-xs text-amber-600 font-medium">👤 ${esc(t.pilote)}</div>
+            ${t.description ? `<p class="text-sm text-gray-600 mt-1">${esc(t.description)}</p>` : ''}
+          </div>`;
+      }).join('')
+    : `<div class="text-center py-5 text-gray-400 text-sm italic">Aucune tâche pour ce projet.</div>`;
+
+  const addForm = canAdd ? `
+    <div class="mt-4 border-t border-gray-100 pt-4">
+      <p class="text-sm font-semibold text-gray-700 mb-3">➕ Ajouter une tâche</p>
+      <div class="space-y-2">
+        <input id="tk-nom" type="text" placeholder="Nom de la tâche *"
+          class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+        <input id="tk-pilote" type="text" placeholder="Pilote (responsable exécutif) *"
+          class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+        <textarea id="tk-desc" rows="2" placeholder="Description (optionnelle)"
+          class="w-full border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"></textarea>
+        <button onclick="addTask('${id}')"
+          class="w-full bg-amber-500 hover:bg-amber-600 text-white py-2 rounded-xl text-sm font-semibold transition">
+          Ajouter la tâche
+        </button>
+      </div>
+    </div>` : '';
+
+  showModal(`
+    <div class="mb-4">
+      <h2 class="text-xl font-bold text-gray-900">${esc(p.name)}</h2>
+      <p class="text-gray-400 text-sm mt-0.5">${taches.length} tâche${taches.length !== 1 ? 's' : ''}</p>
+    </div>
+    <div class="space-y-2 max-h-60 overflow-y-auto pr-1">${tasksList}</div>
+    ${addForm}
+    <button onclick="closeModal()" class="mt-4 w-full border border-gray-200 text-gray-500 hover:bg-gray-50 py-2.5 rounded-xl text-sm transition">
+      Fermer
+    </button>`);
+}
+
+async function addTask(id) {
+  const p = prjs().find(x => x.id === id);
+  if (!p) return;
+  const nom    = document.getElementById('tk-nom').value.trim();
+  const pilote = document.getElementById('tk-pilote').value.trim();
+  const desc   = document.getElementById('tk-desc').value.trim();
+  if (!nom || !pilote) { alert('Le nom et le pilote sont obligatoires.'); return; }
+  if (!p.taches) p.taches = [];
+  p.taches.push({ nom, pilote, description: desc });
+  if (await saveData()) openTasksModal(id);
+}
+
+async function saveTask(id, idx) {
+  const p = prjs().find(x => x.id === id);
+  if (!p || !p.taches) return;
+  const nom    = document.getElementById('te-nom').value.trim();
+  const pilote = document.getElementById('te-pilote').value.trim();
+  const desc   = document.getElementById('te-desc').value.trim();
+  if (!nom || !pilote) { alert('Le nom et le pilote sont obligatoires.'); return; }
+  p.taches[idx] = { nom, pilote, description: desc };
+  if (await saveData()) openTasksModal(id);
+}
+
+async function deleteTask(id, idx) {
+  const p = prjs().find(x => x.id === id);
+  if (!p || !p.taches) return;
+  if (!confirm('Supprimer cette tâche ?')) return;
+  p.taches.splice(idx, 1);
+  if (await saveData()) openTasksModal(id);
+}
+
+// ─────────────────────────────────────────────
 // TOKEN MODAL
 // ─────────────────────────────────────────────
 function openTokenModal() {
@@ -671,9 +840,10 @@ function mainContent() {
   </div>`;
 
   const v = S.view;
-  if (v === 'cat-overview') return viewCatOverview();
-  if (v === 'spn-overview') return viewSpnOverview();
-  if (v === 'admin')        return viewAdmin();
+  if (v === 'cat-overview')    return viewCatOverview();
+  if (v === 'spn-overview')    return viewSpnOverview();
+  if (v === 'tasks-overview')  return viewTasksOverview();
+  if (v === 'admin')           return viewAdmin();
   if (v.startsWith('spn-')) return viewSponsor(v.slice(4));
   if (v.startsWith('cat-')) return viewCategory(v.slice(4));
   return viewCatOverview();
@@ -873,6 +1043,49 @@ async function exportPPTX() {
     });
     const rh = Math.min(0.9, (5.9 / (ps.length+1)));
     slide.addTable(rows, { ...TABLE_OPTS, rowH:rh, x:0.35, y:1.25, w:12.6, colW:[3.2, 3.1, 3.1, 3.2] });
+  });
+
+  // ── Slides tâches par catégorie ───────────
+  const MAX_TASK_ROWS = 12; // lignes de données max par slide
+
+  CATEGORIES.forEach(c => {
+    const ps   = byCat(c.id);
+    const rows = ps.flatMap(p =>
+      (p.taches || []).map(t => ({ projet: p.name, sponsor: p.sponsor, nom: t.nom, pilote: t.pilote, desc: t.description || '' }))
+    );
+    if (!rows.length) return;
+
+    const chunks = [];
+    for (let i = 0; i < rows.length; i += MAX_TASK_ROWS) chunks.push(rows.slice(i, i + MAX_TASK_ROWS));
+    const multi = chunks.length > 1;
+
+    chunks.forEach((chunk, ci) => {
+      const slide = pptx.addSlide();
+      const subTitle = (multi ? `Tâches — page ${ci + 1}/${chunks.length}` : 'Tâches') + ` · ${rows.length} tâche${rows.length !== 1 ? 's' : ''}`;
+      addHeader(slide, c.icon + '  ' + c.label, subTitle);
+
+      const tableRows = [[
+        hdr('Projet'),
+        hdr('Tâche'),
+        hdr('👤 Pilote'),
+        hdr('Description'),
+      ]];
+      chunk.forEach(r => {
+        tableRows.push([
+          { text: [
+              { text: r.projet,  options: { fontSize:10, bold:true,  color:'1e293b' } },
+              { text: '  ' + r.sponsor, options: { fontSize:9, bold:false, color:GOLD } },
+            ], options: { valign:'middle' }
+          },
+          { text: r.nom,   options: { fontSize:10, bold:true,  color:'1e293b', valign:'middle' } },
+          { text: r.pilote || '—', options: { fontSize:10, color:'374151', valign:'middle' } },
+          { text: r.desc  || '—', options: { fontSize:10, color: r.desc ? '374151' : 'adb5bd', italic: !r.desc, valign:'middle' } },
+        ]);
+      });
+
+      const rh = Math.min(0.78, 5.9 / (chunk.length + 1));
+      slide.addTable(tableRows, { ...TABLE_OPTS, rowH: rh, x:0.35, y:1.25, w:12.6, colW:[2.8, 3.0, 2.2, 4.6] });
+    });
   });
 
   // ── Export ────────────────────────────────
