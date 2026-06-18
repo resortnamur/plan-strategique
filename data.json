@@ -11,25 +11,42 @@
       "sponsor": "JS",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Enquêtes ponctuelles", "pilote": "Céline", "description": "" },
+        { "nom": "Feedback New Members", "pilote": "Céline", "description": "" },
+        { "nom": "Feedback permanent", "pilote": "Céline", "description": "" }
+      ]
     },
     {
       "id": "p002",
       "name": "Accueil nouveaux membres Casino",
       "category": "experience-client",
       "sponsor": "CVK",
-      "realisations": "x envois de sms à des New VIP\ny retours",
-      "points_attention": "Quid du feedback ?",
-      "prochaines_etapes": ""
+      "realisations": "",
+      "points_attention": "",
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Hôtesses - missions", "pilote": "Céline", "description": "" },
+        { "nom": "Offres New Members", "pilote": "Céline", "description": "" },
+        { "nom": "Suivi New Members - analyses", "pilote": "Christophe", "description": "" },
+        { "nom": "Offres spéciales VIP New Members", "pilote": "Christophe", "description": "" }
+      ]
     },
     {
       "id": "p003",
       "name": "Relations VIP & Fidélisation",
       "category": "experience-client",
       "sponsor": "CVK",
-      "realisations": "Bilan VIP SMS + carte Privilège",
-      "points_attention": "Dépenses Loyalty",
-      "prochaines_etapes": "faire le point sur les avantages"
+      "realisations": "",
+      "points_attention": "",
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Offres spéciales VIP", "pilote": "Christophe", "description": "" },
+        { "nom": "Règles Loyalty", "pilote": "Christophe", "description": "" },
+        { "nom": "Loyalty opérationnel", "pilote": "J-M", "description": "" },
+        { "nom": "Offres spéciales Gold", "pilote": "J-M", "description": "" }
+      ]
     },
     {
       "id": "p004",
@@ -38,7 +55,11 @@
       "sponsor": "JS",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Standards Accor", "pilote": "David", "description": "" },
+        { "nom": "Audit Accor", "pilote": "David", "description": "" }
+      ]
     },
     {
       "id": "p005",
@@ -47,7 +68,16 @@
       "sponsor": "JS",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Hôtel - Wellness - petit-déjeuner", "pilote": "David", "description": "" },
+        { "nom": "Restaurant", "pilote": "Damien", "description": "" },
+        { "nom": "Salles", "pilote": "David", "description": "" },
+        { "nom": "Slots", "pilote": "J-M", "description": "" },
+        { "nom": "JT", "pilote": "Adrien", "description": "" },
+        { "nom": "Poker", "pilote": "Greg", "description": "" },
+        { "nom": "Riverains", "pilote": "Christophe", "description": "" }
+      ]
     },
     {
       "id": "p006",
@@ -56,16 +86,24 @@
       "sponsor": "JS",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Procédure de checking", "pilote": "David", "description": "" }
+      ]
     },
     {
       "id": "p007",
       "name": "Communication Interne",
       "category": "excellence-operationnelle",
       "sponsor": "SA",
-      "realisations": "On a fait un top boulot",
-      "points_attention": "mais on peut faire mieux",
-      "prochaines_etapes": "va falloir qu'on bosse encore"
+      "realisations": "",
+      "points_attention": "",
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Remontée des informations", "pilote": "Christophe", "description": "" },
+        { "nom": "Annonces officielles", "pilote": "Christophe", "description": "" },
+        { "nom": "Coordination interdépartementale", "pilote": "Christophe", "description": "" }
+      ]
     },
     {
       "id": "p008",
@@ -74,16 +112,24 @@
       "sponsor": "JS",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Suivi des tâches", "pilote": "Hugues", "description": "" },
+        { "nom": "Communication des procédures", "pilote": "Hugues", "description": "" }
+      ]
     },
     {
       "id": "p009",
       "name": "Automatisation & IA",
       "category": "excellence-operationnelle",
       "sponsor": "CVK",
-      "realisations": "Formations IA pour différents collaborateurs - accès Chatgpt et / ou Claude\nAvancée dans le projet Data Platform",
+      "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": "validation de la proposition Keiro - deadline : ce mois-ci\nfaire le point sur l'utilisation de l'IA par les collaborateu"
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Projet Data Platform", "pilote": "Christophe", "description": "" },
+        { "nom": "Développement de l'usage de l'IA", "pilote": "Christophe", "description": "" }
+      ]
     },
     {
       "id": "p010",
@@ -94,11 +140,7 @@
       "points_attention": "",
       "prochaines_etapes": "",
       "taches": [
-        {
-          "nom": "redéfinir les rôles",
-          "pilote": "Adrien C",
-          "description": "checklist Duty"
-        }
+        { "nom": "Rôle & fonctions", "pilote": "Adrien", "description": "" }
       ]
     },
     {
@@ -108,7 +150,10 @@
       "sponsor": "KT",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Plan marketing poker 2027", "pilote": "Greg", "description": "" }
+      ]
     },
     {
       "id": "p012",
@@ -117,16 +162,24 @@
       "sponsor": "KT",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Reporting financier", "pilote": "Christophe", "description": "" },
+        { "nom": "Contrats fournisseurs", "pilote": "Hugues", "description": "" }
+      ]
     },
     {
       "id": "p013",
       "name": "Offerts",
       "category": "performance-financiere",
       "sponsor": "CVK",
-      "realisations": "nouvelles règles offerts personnels",
-      "points_attention": "faire le suivi",
-      "prochaines_etapes": "budget Team Building - deadline ce mois-ci\nofferts commerciaux"
+      "realisations": "",
+      "points_attention": "",
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Offerts personnels", "pilote": "Christophe", "description": "" },
+        { "nom": "Offerts commerciaux", "pilote": "Christophe", "description": "" }
+      ]
     },
     {
       "id": "p014",
@@ -135,7 +188,10 @@
       "sponsor": "SA",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Enquête", "pilote": "Sonia", "description": "" }
+      ]
     },
     {
       "id": "p015",
@@ -144,7 +200,10 @@
       "sponsor": "SA",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Procédure onboarding", "pilote": "Sonia", "description": "" }
+      ]
     },
     {
       "id": "p016",
@@ -153,7 +212,10 @@
       "sponsor": "SA",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Suivi, état des lieux", "pilote": "Sonia", "description": "" }
+      ]
     },
     {
       "id": "p017",
@@ -162,16 +224,25 @@
       "sponsor": "SA",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Plan des formations", "pilote": "Sonia", "description": "" },
+        { "nom": "Grille des compétences", "pilote": "Sonia", "description": "" }
+      ]
     },
     {
       "id": "p018",
       "name": "Procédures sécurité",
       "category": "conformite-risques",
       "sponsor": "CVK",
-      "realisations": "exercices incendie",
-      "points_attention": "comportements dangereux bar",
-      "prochaines_etapes": ""
+      "realisations": "",
+      "points_attention": "",
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Prévention incendie", "pilote": "Christophe", "description": "" },
+        { "nom": "Electricité", "pilote": "Christophe", "description": "" },
+        { "nom": "Produits dangereux", "pilote": "Christophe", "description": "" }
+      ]
     },
     {
       "id": "p019",
@@ -180,7 +251,11 @@
       "sponsor": "KT",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Procédures", "pilote": "J-M", "description": "" },
+        { "nom": "Cas limites", "pilote": "J-M", "description": "" }
+      ]
     },
     {
       "id": "p020",
@@ -189,7 +264,10 @@
       "sponsor": "KT",
       "realisations": "",
       "points_attention": "",
-      "prochaines_etapes": ""
+      "prochaines_etapes": "",
+      "taches": [
+        { "nom": "Procédures", "pilote": "René", "description": "" }
+      ]
     }
   ]
 }
